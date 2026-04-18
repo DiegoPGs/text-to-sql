@@ -1,0 +1,110 @@
+# ============================================================================
+# Voyage BI Copilot — Semantic metrics catalog
+# Each metric has a name, description, and a SQL template the agent can use
+# directly rather than writing ad-hoc SQL.
+# Placeholders: {where_clause} is injected by the agent (may be empty string).
+# ============================================================================
+
+metrics:
+
+  - name: adr
+    description: >
+      Average Daily Rate — the average net revenue earned per booked night.
+      Divide total net revenue by total booked nights for confirmed reservations.
+    sql_template: |
+      SELECT ROUND(
+        SUM(r.net_revenue) / NULLIF(SUM(r.nights), 0),
+      2) AS adr
+      FROM warehouse.reservations r
+      WHERE r.status = 'confirmed'
+        {where_clause}
+    inputs: []
+
+  - name: occupancy_rate
+    description: >
+      Occupancy rate — percentage of available nights that were booked by
+      confirmed reservations, over a given date range and set of properties.
+      Available nights = number of active properties × days in period.
+    sql_template: |
+      SELECT ROUND(
+        100.0 * SUM(r.nights)
+          / NULLIF(COUNT(DISTINCT p.property_id) * {period_days}, 0),
+      2) AS occupancy_rate_pct
+      FROM warehouse.properties p
+      LEFT JOIN warehouse.reservations r
+        ON r.property_id = p.property_id
+       AND r.status = 'confirmed'
+       AND r.check_in  >= {start_date}
+       AND r.check_out <= {end_date}
+      WHERE (p.delisted_at IS NULL OR p.delisted_at > {start_date})
+        {where_clause}
+    inputs:
+      - name: start_date
+        type: date
+      - name: end_date
+        type: date
+      - name: period_days
+        type: integer
+
+  - name: revpar
+    description: >
+      Revenue Per Available Room-night (RevPAR) — net revenue divided by the
+      total number of available nights (occupied + unoccupied).
+      RevPAR = ADR × occupancy_rate.
+    sql_template: |
+      SELECT ROUND(
+        SUM(r.net_revenue)
+          / NULLIF(COUNT(DISTINCT p.property_id) * {period_days}, 0),
+      2) AS revpar
+      FROM warehouse.properties p
+      LEFT JOIN warehouse.reservations r
+        ON r.property_id = p.property_id
+       AND r.status = 'confirmed'
+       AND r.check_in  >= {start_date}
+       AND r.check_out <= {end_date}
+      WHERE (p.delisted_at IS NULL OR p.delisted_at > {start_date})
+        {where_clause}
+    inputs:
+      - name: start_date
+        type: date
+      - name: end_date
+        type: date
+      - name: period_days
+        type: integer
+
+  - name: total_revenue
+    description: >
+      Total net revenue from confirmed reservations.
+      Optionally filtered by market, channel, or date range.
+    sql_template: |
+      SELECT ROUND(SUM(r.net_revenue), 2) AS total_revenue
+      FROM warehouse.reservations r
+      WHERE r.status = 'confirmed'
+        {where_clause}
+    inputs: []
+
+  - name: cancellation_rate
+    description: >
+      Cancellation rate — percentage of all reservations that were cancelled.
+      A high cancellation rate may indicate pricing, policy, or quality issues.
+    sql_template: |
+      SELECT ROUND(
+        100.0 * COUNT(*) FILTER (WHERE r.status = 'cancelled')
+          / NULLIF(COUNT(*), 0),
+      2) AS cancellation_rate_pct
+      FROM warehouse.reservations r
+      WHERE 1=1
+        {where_clause}
+    inputs: []
+
+  - name: avg_review_rating
+    description: >
+      Average guest review rating (1–5 scale) for confirmed reservations.
+      Only reservations with a submitted review are included.
+    sql_template: |
+      SELECT ROUND(AVG(rv.rating)::numeric, 2) AS avg_review_rating
+      FROM warehouse.reviews rv
+      JOIN warehouse.reservations r ON r.reservation_id = rv.reservation_id
+      WHERE r.status = 'confirmed'
+        {where_clause}
+    inputs: []

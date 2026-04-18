@@ -69,11 +69,12 @@ known-first-party = ["voyage"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["voyage"]
+files = ["voyage", "scripts"]
 exclude = ["tests/", "text_to_sql/"]
 
 [[tool.mypy.overrides]]
 module = [
+    "asyncpg",
     "asyncpg.*",
     "pgvector.*",
     "instructor.*",
