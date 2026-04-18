@@ -69,8 +69,8 @@ known-first-party = ["voyage"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["voyage", "server", "scripts"]
-exclude = ["tests/"]
+files = ["voyage"]
+exclude = ["tests/", "text_to_sql/"]
 
 [[tool.mypy.overrides]]
 module = [

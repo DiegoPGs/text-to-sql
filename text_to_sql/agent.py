@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from functools import partial
 
@@ -100,6 +100,7 @@ class TextToSQLAgent:
     def answer(self, question: str) -> QueryResponse:
         normalized = " ".join(question.lower().split())
 
+        chart_builder: Callable[..., str] | None = None
         if "occupancy" in normalized and "city" in normalized:
             sql = """
                 SELECT l.city,
@@ -189,7 +190,10 @@ def _bar_chart(rows: Sequence[Sequence[object]], suffix: str = "") -> str:
     labels: list[str] = []
     for row in rows:
         labels.append(str(row[0]))
-        values.append(float(row[1]))
+        v = row[1]
+        if not isinstance(v, (int, float)):
+            raise TypeError(f"Expected numeric value in column 1, got {type(v)}")
+        values.append(float(v))
 
     max_value = max(values) or 1.0
     lines: list[str] = []
