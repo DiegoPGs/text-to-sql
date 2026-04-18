@@ -94,9 +94,7 @@ class TestRunQueryValidation:
     async def test_insert_rejected(self) -> None:
         ctx = _ctx(_make_pool(_make_conn()))
         with pytest.raises(ValueError, match="validation failed"):
-            await run_query(
-                "INSERT INTO warehouse.markets VALUES (1,'x','y','z','w')", ctx
-            )
+            await run_query("INSERT INTO warehouse.markets VALUES (1,'x','y','z','w')", ctx)
 
     async def test_update_rejected(self) -> None:
         ctx = _ctx(_make_pool(_make_conn()))
@@ -147,13 +145,9 @@ class TestRunQueryHappyPath:
 
     async def test_returns_typed_columns_and_rows(self) -> None:
         conn = _make_conn()
-        conn.fetch = AsyncMock(
-            return_value=[{"market_id": 1, "name": "Joshua Tree"}]
-        )
+        conn.fetch = AsyncMock(return_value=[{"market_id": 1, "name": "Joshua Tree"}])
         ctx = _ctx(_make_pool(conn))
-        result = await run_query(
-            "SELECT market_id, name FROM warehouse.markets LIMIT 1", ctx
-        )
+        result = await run_query("SELECT market_id, name FROM warehouse.markets LIMIT 1", ctx)
         assert result.columns == ["market_id", "name"]
         assert result.rows == [[1, "Joshua Tree"]]
         assert result.row_count == 1
@@ -175,9 +169,7 @@ class TestRunQueryHappyPath:
         conn = _make_conn()
         conn.fetch = AsyncMock(return_value=[{"id": i} for i in range(row_limit)])
         ctx = _ctx(_make_pool(conn))
-        result = await run_query(
-            "SELECT id FROM warehouse.markets", ctx, row_limit=row_limit
-        )
+        result = await run_query("SELECT id FROM warehouse.markets", ctx, row_limit=row_limit)
         assert result.truncated
 
     async def test_truncated_flag_clear_below_limit(self) -> None:
@@ -185,9 +177,7 @@ class TestRunQueryHappyPath:
         conn = _make_conn()
         conn.fetch = AsyncMock(return_value=[{"id": i} for i in range(3)])
         ctx = _ctx(_make_pool(conn))
-        result = await run_query(
-            "SELECT id FROM warehouse.markets", ctx, row_limit=row_limit
-        )
+        result = await run_query("SELECT id FROM warehouse.markets", ctx, row_limit=row_limit)
         assert not result.truncated
 
 
