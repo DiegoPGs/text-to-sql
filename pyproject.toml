@@ -2,7 +2,7 @@
 name = "voyage-bi-copilot"
 version = "0.1.0"
 description = "Production-grade text-to-SQL agent for vacation rental operations"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 dependencies = [
     "anthropic>=0.25",
     "asyncpg>=0.29",
