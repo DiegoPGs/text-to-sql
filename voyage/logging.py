@@ -1,34 +1,85 @@
-"""Structured JSON-lines span logger.
+"""Structured JSON-lines logger for agent runs.
 
-Every node calls ``log_span`` after it completes.  Spans are appended to
-``logs/run-{run_id}.jsonl`` so each run has its own trace file.
+Each agent node emits a :class:`Span` to ``state.trace``.  This module is
+the sink that persists those spans to a per-run JSONL file under ``logs/``.
 
-The format is designed to be trivially adaptable to OpenTelemetry or
-LangSmith with a thin exporter (see CLAUDE.md §Observability).
+Format (one JSON object per line)::
+
+    {
+      "run_id":      "a1b2c3d4",
+      "ts":          1736700000.123,        # epoch seconds, span emit time
+      "node":        "draft_sql",
+      "duration_ms": 421.5,
+      "tokens_in":   132,
+      "tokens_out":  88,
+      "model":       "claude-opus-4-7",
+      "retry_count": 0,
+      "error":       ""
+    }
+
+Designed so a thin exporter can map it to OpenTelemetry or LangSmith later
+without changing the call sites.
 """
 
 from __future__ import annotations
 
 import json
-import os
+import time
 from pathlib import Path
+from types import TracebackType
+from typing import IO
 
 from voyage.agent.state import Span
 
-_LOGS_DIR = Path(__file__).parent.parent / "logs"
+_DEFAULT_LOGS_DIR = Path("logs")
 
 
-def log_span(run_id: str, span: Span) -> None:
-    """Append *span* as a JSON line to ``logs/run-{run_id}.jsonl``.
+def run_log_path(run_id: str, *, root: Path | None = None) -> Path:
+    """Return the canonical log path for *run_id*.
 
-    Creates the logs directory if it does not exist.  Never raises — a
-    logging failure must not crash the agent.
+    Format: ``logs/run-YYYYMMDDTHHMMSS-{run_id}.jsonl``.
     """
-    try:
-        _LOGS_DIR.mkdir(exist_ok=True)
-        path = _LOGS_DIR / f"run-{run_id}.jsonl"
-        record = {"run_id": run_id, **span.model_dump()}
-        with path.open("a") as fh:
-            fh.write(json.dumps(record) + os.linesep)
-    except Exception:  # noqa: BLE001
-        pass
+    base = root if root is not None else _DEFAULT_LOGS_DIR
+    stamp = time.strftime("%Y%m%dT%H%M%S", time.gmtime())
+    return base / f"run-{stamp}-{run_id}.jsonl"
+
+
+class JsonlSpanLogger:
+    """Append-only JSON-lines sink for :class:`Span` records."""
+
+    def __init__(self, path: Path, *, run_id: str) -> None:
+        self.path = path
+        self.run_id = run_id
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Line-buffered so partial runs are still readable (e.g. on Ctrl-C).
+        self._fh: IO[str] = path.open("a", buffering=1, encoding="utf-8")
+
+    def write(self, span: Span) -> None:
+        """Serialise *span* and append it as one JSON line."""
+        record = {
+            "run_id": self.run_id,
+            "ts": time.time(),
+            **span.model_dump(),
+        }
+        self._fh.write(json.dumps(record, default=str) + "\n")
+
+    def write_many(self, spans: list[Span]) -> None:
+        for span in spans:
+            self.write(span)
+
+    def close(self) -> None:
+        if not self._fh.closed:
+            self._fh.close()
+
+    # --- context-manager sugar ------------------------------------------------
+
+    def __enter__(self) -> JsonlSpanLogger:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()
