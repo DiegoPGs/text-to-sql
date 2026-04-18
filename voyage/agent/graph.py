@@ -35,8 +35,10 @@ from __future__ import annotations
 from typing import Any
 
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import END, StateGraph
 
+from server._models import Metric, QueryResult, TableSchema, ValidationResult
 from voyage.agent.nodes.clarify import clarify
 from voyage.agent.nodes.classify import classify_intent
 from voyage.agent.nodes.draft import draft_sql
@@ -46,9 +48,24 @@ from voyage.agent.nodes.interpret import interpret_result
 from voyage.agent.nodes.refuse import refuse
 from voyage.agent.nodes.retrieve import retrieve_context
 from voyage.agent.nodes.validate import validate_sql
-from voyage.agent.state import AgentState, IntentEnum
+from voyage.agent.state import AgentState, Answer, FewShot, Intent, IntentEnum, Span, SqlDraft
 
 MAX_RETRIES = 3
+
+# Pydantic types we persist via the checkpointer. Registered explicitly so
+# langgraph's msgpack serializer does not emit per-deserialization warnings.
+_CHECKPOINT_TYPES: tuple[type, ...] = (
+    IntentEnum,
+    Intent,
+    FewShot,
+    SqlDraft,
+    Answer,
+    Span,
+    TableSchema,
+    Metric,
+    ValidationResult,
+    QueryResult,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -157,4 +174,7 @@ def build_graph(checkpointer: Any | None = None) -> Any:
     g.add_edge("interpret_result", END)
     g.add_edge("terminate_failure", END)
 
-    return g.compile(checkpointer=checkpointer if checkpointer is not None else MemorySaver())
+    if checkpointer is None:
+        serde = JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_TYPES)
+        checkpointer = MemorySaver(serde=serde)
+    return g.compile(checkpointer=checkpointer)

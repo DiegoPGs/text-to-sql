@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def _require(key: str) -> str:
     value = os.environ.get(key)
