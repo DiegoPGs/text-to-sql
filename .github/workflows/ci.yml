@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, feature/*, chrore/*]
+    branches: [main, develop, feature/*, chore/*]
   pull_request:
-    branches: [main, develop, feature/*, chrore/*]
+    branches: [main, develop, feature/*, chore/*]
 
 jobs:
   lint:
@@ -37,7 +37,7 @@ jobs:
       - name: Sync dependencies
         run: uv sync --frozen
       - name: mypy
-        run: uv run mypy --strict .
+        run: uv run mypy --strict
 
   test:
     name: Test

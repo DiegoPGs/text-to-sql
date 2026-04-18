@@ -2,9 +2,9 @@ name: Security
 
 on:
   push:
-    branches: [main, develop, feature/*, chrore/*]
+    branches: [main, develop, feature/*, chore/*]
   pull_request:
-    branches: [main, develop, feature/*, chrore/*]
+    branches: [main, develop, feature/*, chore/*]
 
 jobs:
   gitleaks:
