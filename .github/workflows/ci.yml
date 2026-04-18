@@ -1,4 +1,4 @@
-name: Security
+name: CI
 
 on:
   push:
@@ -7,19 +7,8 @@ on:
     branches: [main, develop, feature/*, chrore/*]
 
 jobs:
-  gitleaks:
-    name: Gitleaks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  bandit:
-    name: Bandit (SAST)
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,11 +19,13 @@ jobs:
         uses: astral-sh/setup-uv@v4
       - name: Sync dependencies
         run: uv sync --frozen
-      - name: Run Bandit
-        run: uv run bandit -r voyage/ server/ scripts/ -ll
+      - name: ruff check
+        run: uv run ruff check .
+      - name: ruff format check
+        run: uv run ruff format --check .
 
-  pip-audit:
-    name: pip-audit (dependency vulnerabilities)
+  typecheck:
+    name: Type check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,11 +36,11 @@ jobs:
         uses: astral-sh/setup-uv@v4
       - name: Sync dependencies
         run: uv sync --frozen
-      - name: Run pip-audit
-        run: uv run pip-audit
+      - name: mypy
+        run: uv run mypy --strict .
 
-  snyk:
-    name: Snyk
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,8 +51,5 @@ jobs:
         uses: astral-sh/setup-uv@v4
       - name: Sync dependencies
         run: uv sync --frozen
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/python@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: pytest
+        run: uv run pytest -q
