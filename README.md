@@ -157,8 +157,8 @@ or LangSmith.
   wording varies. Graded by LLM-judge, not exact match.
 - **Cost estimation** — `EXPLAIN` cost is a Postgres-internal unit,
   not wall-clock. Timeout is the real backstop.
-- **One model family tested in evals** — Anthropic only. OpenAI
-  fallback path exists but is untested.
+- **One model family tested in evals** — Anthropic only in v0.1;
+  other providers are not implemented or validated here.
 - **No token streaming** — node-level streaming only; the final
   answer arrives as one block.
 
