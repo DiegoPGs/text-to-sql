@@ -40,7 +40,7 @@ from ._models import (
     TableSummary,
     ValidationResult,
 )
-from ._validator import validate_and_sanitize
+from ._validator import validate_and_sanitize, validate_identifier
 
 load_dotenv()
 
@@ -143,6 +143,8 @@ async def describe_table(name: str, ctx: Any) -> TableSchema:
     Args:
         name: Table name without schema prefix (e.g. ``"reservations"``).
     """
+    # Validate identifier before any interpolation (Bandit B608 defence).
+    validate_identifier(name)
     pool = _get_pool(ctx)
     async with pool.acquire() as conn:
         col_rows = await conn.fetch(
@@ -197,9 +199,9 @@ async def describe_table(name: str, ctx: Any) -> TableSchema:
             or 0
         )
 
-        # Sample rows — safe: no user SQL, table name is validated above
+        # Sample rows — name validated by validate_identifier() above.
         sample_records = await conn.fetch(
-            f'SELECT * FROM warehouse."{name}" LIMIT 5'  # noqa: S608
+            f'SELECT * FROM warehouse."{name}" LIMIT 5'  # nosec B608  # noqa: S608
         )
         sample_rows: list[dict[str, object]] = [dict(r) for r in sample_records]
 

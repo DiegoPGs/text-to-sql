@@ -23,6 +23,10 @@ import sqlglot.expressions as exp
 
 from ._models import ValidationResult
 
+# Valid PostgreSQL unquoted identifier: starts with letter or underscore,
+# followed by letters, digits, dollar signs, or underscores.
+_IDENTIFIER_RE: re.Pattern[str] = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
+
 # ---------------------------------------------------------------------------
 # Deny-lists
 # ---------------------------------------------------------------------------
@@ -79,6 +83,26 @@ _FORBIDDEN_STMT_TYPES: tuple[type[exp.Expression], ...] = (
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+
+def validate_identifier(name: str) -> None:
+    """Raise ``ValueError`` if *name* is not a safe PostgreSQL identifier.
+
+    Used as a belt-and-braces check before interpolating a table or column
+    name into an f-string query (Bandit B608 / ruff S608).  The primary
+    defence is always the parameterised ``information_schema`` query that
+    confirms the object exists in the ``warehouse`` schema; this closes the
+    residual surface for names that contain quote characters or whitespace.
+
+    Args:
+        name: A table or column name to validate.
+
+    Raises:
+        ValueError: If *name* contains characters that are unsafe to
+            interpolate into a double-quoted PostgreSQL identifier.
+    """
+    if not _IDENTIFIER_RE.match(name):
+        raise ValueError(f"Invalid identifier {name!r}: must match ^[A-Za-z_][A-Za-z0-9_$]*$")
 
 
 def validate_and_sanitize(sql: str, row_limit: int = 1000) -> ValidationResult:

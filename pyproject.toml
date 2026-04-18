@@ -78,6 +78,7 @@ module = [
     "asyncpg.*",
     "pgvector.*",
     "instructor.*",
+    "langchain_core.*",
     "langgraph.*",
     "mcp.*",
     "sqlglot.*",
