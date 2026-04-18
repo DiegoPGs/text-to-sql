@@ -16,7 +16,7 @@ cp .env.example .env        # set ANTHROPIC_API_KEY
 make setup up seed          # install, start postgres, load the warehouse
 ```
 
-Every session below was run with `voyage ask "<question>" --trace`.
+The first session below was run with `voyage ask "<question>" --trace`.
 
 ---
 
