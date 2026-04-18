@@ -285,6 +285,15 @@ _COL_ROWS = [
 
 
 class TestDescribeTable:
+    async def test_malicious_table_name_rejected_before_db(self) -> None:
+        """validate_identifier must fire before any DB call (B608 guard)."""
+        conn = _make_conn()
+        ctx = _ctx(_make_pool(conn))
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            await describe_table('evil"; DROP TABLE warehouse.markets --', ctx)
+        # The DB must never have been called.
+        conn.fetch.assert_not_called()
+
     async def test_unknown_table_raises_value_error(self) -> None:
         conn = _make_conn()
         conn.fetch = AsyncMock(return_value=[])  # empty → table not found

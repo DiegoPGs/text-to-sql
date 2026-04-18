@@ -6,7 +6,7 @@ These tests cover the inviolate safety rules from CLAUDE.md §Safety rules.
 
 from __future__ import annotations
 
-from server._validator import validate_and_sanitize
+from server._validator import validate_and_sanitize, validate_identifier
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -219,3 +219,53 @@ class TestEdgeCases:
     def test_comment_injection_does_not_bypass(self) -> None:
         # SQL comments should not allow bypassing the validator
         _fail("SELECT 1; -- DROP TABLE warehouse.properties", containing="single")
+
+
+# ---------------------------------------------------------------------------
+# validate_identifier — B608 injection guard for table-name interpolation
+# ---------------------------------------------------------------------------
+
+
+class TestValidateIdentifier:
+    def test_simple_table_name_passes(self) -> None:
+        validate_identifier("markets")  # should not raise
+        validate_identifier("reservations")
+        validate_identifier("pricing_snapshots")
+        validate_identifier("sensor_events")
+
+    def test_leading_underscore_passes(self) -> None:
+        validate_identifier("_internal")
+
+    def test_name_with_dollar_passes(self) -> None:
+        # PostgreSQL allows $ in identifiers after the first character.
+        validate_identifier("col_1$")
+
+    def test_injection_attempt_rejected(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            validate_identifier('evil"; DROP TABLE warehouse.markets --')
+
+    def test_quote_character_rejected(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            validate_identifier('table"name')
+
+    def test_space_rejected(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            validate_identifier("table name")
+
+    def test_leading_digit_rejected(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            validate_identifier("1_table")
+
+    def test_empty_string_rejected(self) -> None:
+        import pytest
+
+        with pytest.raises(ValueError, match="Invalid identifier"):
+            validate_identifier("")

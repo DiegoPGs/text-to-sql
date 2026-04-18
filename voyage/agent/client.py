@@ -22,7 +22,7 @@ from server._models import (
     TableSchema,
     TableSummary,
 )
-from server._validator import validate_and_sanitize
+from server._validator import validate_and_sanitize, validate_identifier
 from voyage import config
 
 _METRICS_PATH = Path(__file__).parent.parent.parent / "data" / "metrics.yaml"
@@ -80,6 +80,8 @@ class WarehouseClient:
 
     async def describe_table(self, name: str) -> TableSchema:
         """Return full schema for *name* including sample rows."""
+        # Validate identifier before any interpolation (Bandit B608 defence).
+        validate_identifier(name)
         async with self._pool.acquire() as conn:
             col_rows = await conn.fetch(
                 """
@@ -133,8 +135,9 @@ class WarehouseClient:
                 or 0
             )
 
+            # name validated by validate_identifier() above.
             sample_records = await conn.fetch(
-                f'SELECT * FROM warehouse."{name}" LIMIT 5'  # noqa: S608
+                f'SELECT * FROM warehouse."{name}" LIMIT 5'  # nosec B608  # noqa: S608
             )
             sample_rows: list[dict[str, object]] = [dict(r) for r in sample_records]
 
