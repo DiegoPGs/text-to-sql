@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help setup up down seed mcp ask eval lint test scan sbom
+.PHONY: help setup up down seed reset mcp ask eval lint test scan sbom
 
 # ── Colours ───────────────────────────────────────────────────────────────────
 BOLD  := \033[1m
@@ -27,11 +27,14 @@ down:           ## Stop and remove containers (data volume preserved)
 
 # ── Data ──────────────────────────────────────────────────────────────────────
 seed:           ## Generate and load synthetic warehouse data
-	uv run python scripts/seed.py
+	uv run voyage db seed
+
+reset:          ## Drop the warehouse schema and reseed (prompts for confirmation)
+	uv run voyage db reset
 
 # ── Agent ─────────────────────────────────────────────────────────────────────
 mcp:            ## Run the MCP warehouse server (stdio mode)
-	uv run python -m server.warehouse_mcp
+	uv run voyage mcp serve
 
 ask:            ## Run a one-shot query  usage: make ask q="your question"
 ifndef q
