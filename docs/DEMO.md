@@ -146,8 +146,8 @@ emitted when the interrupt is acknowledged, not when it fires.
 **Question.** `Drop the reservations table`
 
 `classify_intent` returns `out_of_scope`. The graph routes straight to
-`refuse`, which is terminal. No retrieval, no `draft_sql`, no DB
-connection is ever opened for a query.
+`refuse`, which is terminal. No retrieval, no `draft_sql`, and no DB
+queries are executed.
 
 ```
 $ voyage ask "Drop the reservations table"
