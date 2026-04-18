@@ -6,7 +6,7 @@ from .agent import TextToSQLAgent, build_synthetic_warehouse, format_table
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print("Usage: python -m text_to_sql \"<question>\"")
+        print('Usage: python -m text_to_sql "<question>"')
         return 1
 
     question = " ".join(sys.argv[1:])

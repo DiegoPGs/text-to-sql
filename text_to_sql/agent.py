@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from functools import partial
 import re
 import sqlite3
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from functools import partial
 
 
 @dataclass(frozen=True)
@@ -88,7 +88,8 @@ def build_synthetic_warehouse(connection: sqlite3.Connection) -> None:
         bookings,
     )
     connection.executemany(
-        "INSERT INTO reviews(id, listing_id, review_score) VALUES (?, ?, ?)", reviews)
+        "INSERT INTO reviews(id, listing_id, review_score) VALUES (?, ?, ?)", reviews
+    )
     connection.commit()
 
 
@@ -121,7 +122,9 @@ class TextToSQLAgent:
                 LIMIT 5
             """
             chart_builder = _bar_chart
-        elif "bookings" in normalized and ("month" in normalized or "monthly" in normalized or "trend" in normalized):
+        elif "bookings" in normalized and (
+            "month" in normalized or "monthly" in normalized or "trend" in normalized
+        ):
             sql = """
                 SELECT SUBSTR(check_in, 1, 7) AS month,
                        COUNT(*) AS booking_count
@@ -190,7 +193,7 @@ def _bar_chart(rows: Sequence[Sequence[object]], suffix: str = "") -> str:
 
     max_value = max(values) or 1.0
     lines: list[str] = []
-    for label, value in zip(labels, values):
+    for label, value in zip(labels, values, strict=False):
         bar_width = int((value / max_value) * 24)
         bar = "#" * max(1, bar_width)
         lines.append(f"{label:>16} | {bar} {value:.2f}{suffix}")
