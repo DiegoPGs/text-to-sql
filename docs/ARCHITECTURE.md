@@ -121,9 +121,8 @@ keyword-ranked top-k set, the self-correction loop can't recover.
 error.
 **Output:** `SqlDraft { sql: str, rationale: str, confidence: float }`.
 
-`instructor`-wrapped Anthropic call. Temperature 0. The response model
-is a named Pydantic class whose field docstrings are instructions to
-the LLM:
+`instructor`-wrapped Anthropic call. The response model is a named
+Pydantic class whose field docstrings are instructions to the LLM:
 
 - `sql` — must qualify all table names with the `warehouse` schema,
   must include a `LIMIT`, must use `status = 'confirmed'` for
