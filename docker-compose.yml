@@ -1,0 +1,23 @@
+services:
+  postgres:
+    # Pinned to pgvector 0.7.4 on Postgres 16.
+    # To update: docker pull pgvector/pgvector:pg16, then replace the digest below
+    # with: docker inspect pgvector/pgvector:pg16 --format '{{index .RepoDigests 0}}'
+    image: pgvector/pgvector@sha256:7d400e340efb42f4d8c9c12c6427adb253f726881a9985d2a471bf0eed824dff
+    environment:
+      POSTGRES_USER: voyage
+      POSTGRES_PASSWORD: voyage
+      POSTGRES_DB: voyage
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voyage -d voyage"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

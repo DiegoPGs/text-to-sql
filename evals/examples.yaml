@@ -1,0 +1,175 @@
+# ============================================================================
+# Voyage BI Copilot — Few-shot question → SQL examples
+# Used by scripts/build_retrieval_index.py to populate the retrieval index.
+# The agent retrieves the most relevant examples at query time.
+# ============================================================================
+
+examples:
+
+  # ---------- Easy: single-table aggregations --------------------------------
+
+  - id: total_revenue_all_time
+    question: "What is the total net revenue across all markets?"
+    sql: |
+      SELECT ROUND(SUM(net_revenue), 2) AS total_revenue
+      FROM warehouse.reservations
+      WHERE status = 'confirmed';
+
+  - id: revenue_by_channel
+    question: "Break down total net revenue by booking channel."
+    sql: |
+      SELECT channel,
+             ROUND(SUM(net_revenue), 2) AS total_revenue,
+             COUNT(*)                   AS reservation_count
+      FROM warehouse.reservations
+      WHERE status = 'confirmed'
+      GROUP BY channel
+      ORDER BY total_revenue DESC;
+
+  - id: avg_rating_overall
+    question: "What is the average guest review rating across all properties?"
+    sql: |
+      SELECT ROUND(AVG(rating)::numeric, 2) AS avg_rating
+      FROM warehouse.reviews;
+
+  - id: cancellation_rate_overall
+    question: "What is the overall cancellation rate?"
+    sql: |
+      SELECT ROUND(
+        100.0 * COUNT(*) FILTER (WHERE status = 'cancelled') / NULLIF(COUNT(*), 0),
+      2) AS cancellation_rate_pct
+      FROM warehouse.reservations;
+
+  - id: active_properties_count
+    question: "How many properties are currently active (not delisted)?"
+    sql: |
+      SELECT COUNT(*) AS active_properties
+      FROM warehouse.properties
+      WHERE delisted_at IS NULL;
+
+  # ---------- Medium: joins, filters, time windows --------------------------
+
+  - id: top_markets_by_revenue_last_quarter
+    question: "Which are the top 5 markets by net revenue last quarter?"
+    sql: |
+      SELECT m.name                         AS market,
+             ROUND(SUM(r.net_revenue), 2)   AS total_revenue
+      FROM warehouse.reservations r
+      JOIN warehouse.properties  p ON p.property_id  = r.property_id
+      JOIN warehouse.markets     m ON m.market_id    = p.market_id
+      WHERE r.status   = 'confirmed'
+        AND r.check_in >= date_trunc('quarter', now()) - interval '3 months'
+        AND r.check_in <  date_trunc('quarter', now())
+      GROUP BY m.name
+      ORDER BY total_revenue DESC
+      LIMIT 5;
+
+  - id: occupancy_by_market_last_30_days
+    question: "What is the occupancy rate per market over the last 30 days?"
+    sql: |
+      SELECT m.name AS market,
+             ROUND(
+               100.0 * SUM(r.nights)
+                 / NULLIF(COUNT(DISTINCT p.property_id) * 30, 0),
+             2) AS occupancy_rate_pct
+      FROM warehouse.markets m
+      JOIN warehouse.properties  p ON p.market_id    = m.market_id
+      LEFT JOIN warehouse.reservations r
+             ON r.property_id = p.property_id
+            AND r.status      = 'confirmed'
+            AND r.check_in   >= current_date - 30
+            AND r.check_out  <= current_date
+      WHERE p.delisted_at IS NULL
+      GROUP BY m.name
+      ORDER BY occupancy_rate_pct DESC;
+
+  - id: adr_by_channel
+    question: "What is the Average Daily Rate (ADR) broken down by booking channel?"
+    sql: |
+      SELECT channel,
+             ROUND(SUM(net_revenue) / NULLIF(SUM(nights), 0), 2) AS adr
+      FROM warehouse.reservations
+      WHERE status = 'confirmed'
+      GROUP BY channel
+      ORDER BY adr DESC;
+
+  - id: properties_with_low_ratings
+    question: "Which properties have an average review rating below 3.5?"
+    sql: |
+      SELECT p.property_id,
+             m.name                              AS market,
+             ROUND(AVG(rv.rating)::numeric, 2)  AS avg_rating,
+             COUNT(rv.review_id)                AS review_count
+      FROM warehouse.properties p
+      JOIN warehouse.markets m   ON m.market_id    = p.market_id
+      JOIN warehouse.reservations r ON r.property_id = p.property_id
+      JOIN warehouse.reviews rv  ON rv.reservation_id = r.reservation_id
+      WHERE r.status = 'confirmed'
+      GROUP BY p.property_id, m.name
+      HAVING AVG(rv.rating) < 3.5
+      ORDER BY avg_rating ASC
+      LIMIT 20;
+
+  - id: revenue_yoy_comparison
+    question: "Compare total net revenue this year vs last year by market."
+    sql: |
+      SELECT m.name AS market,
+             ROUND(SUM(CASE WHEN date_part('year', r.check_in) = date_part('year', now())
+                            THEN r.net_revenue ELSE 0 END), 2) AS revenue_this_year,
+             ROUND(SUM(CASE WHEN date_part('year', r.check_in) = date_part('year', now()) - 1
+                            THEN r.net_revenue ELSE 0 END), 2) AS revenue_last_year
+      FROM warehouse.reservations r
+      JOIN warehouse.properties p ON p.property_id = r.property_id
+      JOIN warehouse.markets    m ON m.market_id   = p.market_id
+      WHERE r.status = 'confirmed'
+        AND r.check_in >= date_trunc('year', now()) - interval '1 year'
+      GROUP BY m.name
+      ORDER BY revenue_this_year DESC;
+
+  # ---------- Hard: window functions, multi-step ----------------------------
+
+  - id: revpar_by_market_with_rank
+    question: "Calculate RevPAR for each market over the last 90 days and rank them."
+    sql: |
+      SELECT m.name AS market,
+             ROUND(
+               SUM(r.net_revenue) / NULLIF(COUNT(DISTINCT p.property_id) * 90, 0),
+             2) AS revpar,
+             RANK() OVER (ORDER BY SUM(r.net_revenue)
+               / NULLIF(COUNT(DISTINCT p.property_id) * 90, 0) DESC) AS rank
+      FROM warehouse.markets m
+      JOIN warehouse.properties p ON p.market_id = m.market_id
+      LEFT JOIN warehouse.reservations r
+             ON r.property_id = p.property_id
+            AND r.status      = 'confirmed'
+            AND r.check_in   >= current_date - 90
+      WHERE p.delisted_at IS NULL
+      GROUP BY m.name
+      ORDER BY rank;
+
+  - id: noise_complaints_with_negative_reviews
+    question: >
+      Show properties that had noise spike sensor events in the last 60 days
+      and also received a negative review in the same period.
+    sql: |
+      SELECT DISTINCT
+             p.property_id,
+             m.name                AS market,
+             COUNT(DISTINCT se.event_id)  AS noise_events,
+             COUNT(DISTINCT rv.review_id) AS negative_reviews
+      FROM warehouse.properties p
+      JOIN warehouse.markets m ON m.market_id = p.market_id
+      JOIN warehouse.sensor_events se
+             ON se.property_id = p.property_id
+            AND se.event_type  = 'noise_spike'
+            AND se.occurred_at >= now() - interval '60 days'
+      JOIN warehouse.reservations r
+             ON r.property_id = p.property_id
+            AND r.status      = 'confirmed'
+      JOIN warehouse.reviews rv
+             ON rv.reservation_id = r.reservation_id
+            AND rv.sentiment      = 'negative'
+            AND rv.submitted_at  >= now() - interval '60 days'
+      GROUP BY p.property_id, m.name
+      ORDER BY noise_events DESC
+      LIMIT 20;
