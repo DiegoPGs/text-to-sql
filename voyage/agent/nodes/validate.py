@@ -28,12 +28,15 @@ async def validate_sql(state: AgentState, config: RunnableConfig) -> dict[str, A
     """Validate and cost-check the SQL draft."""
     t0 = time.monotonic()
 
+    next_retry = state["retry_count"] + 1
+
     draft = state["sql_draft"]
     if draft is None:
         duration = round((time.monotonic() - t0) * 1000, 2)
         err = "No SQL draft to validate"
         return {
             "validation_result": ValidationResult(ok=False, errors=[err]),
+            "retry_count": next_retry,
             "errors": [NodeError(node="validate_sql", error=err)],
             "trace": [Span(node="validate_sql", duration_ms=duration, error=err)],
         }
@@ -45,8 +48,16 @@ async def validate_sql(state: AgentState, config: RunnableConfig) -> dict[str, A
         error_str = "; ".join(val.errors)
         return {
             "validation_result": val,
+            "retry_count": next_retry,
             "errors": [NodeError(node="validate_sql", error=error_str)],
-            "trace": [Span(node="validate_sql", duration_ms=duration, error=error_str)],
+            "trace": [
+                Span(
+                    node="validate_sql",
+                    duration_ms=duration,
+                    retry_count=next_retry,
+                    error=error_str,
+                )
+            ],
         }
 
     # Step 2 — cost check via EXPLAIN
@@ -58,8 +69,16 @@ async def validate_sql(state: AgentState, config: RunnableConfig) -> dict[str, A
             duration = round((time.monotonic() - t0) * 1000, 2)
             return {
                 "validation_result": ValidationResult(ok=False, errors=[err]),
+                "retry_count": next_retry,
                 "errors": [NodeError(node="validate_sql", error=err)],
-                "trace": [Span(node="validate_sql", duration_ms=duration, error=err)],
+                "trace": [
+                    Span(
+                        node="validate_sql",
+                        duration_ms=duration,
+                        retry_count=next_retry,
+                        error=err,
+                    )
+                ],
             }
     except Exception:  # noqa: BLE001
         # EXPLAIN failed (e.g. no DB); proceed with the static validation result.
