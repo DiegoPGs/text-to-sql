@@ -61,7 +61,7 @@ select = [
 ignore = ["E501"]  # line length enforced by formatter
 
 [tool.ruff.lint.isort]
-known-first-party = ["voyage"]
+known-first-party = ["voyage", "server", "evals", "scripts"]
 
 # -----------------------------------------------------------------------------
 # Mypy — strict type checking
@@ -69,7 +69,7 @@ known-first-party = ["voyage"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["voyage", "scripts", "server"]
+files = ["voyage", "scripts", "server", "evals"]
 exclude = ["tests/", "text_to_sql/"]
 
 [[tool.mypy.overrides]]

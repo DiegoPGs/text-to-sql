@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langgraph.types import Interrupt
@@ -50,10 +50,12 @@ class TestCliSurface:
         assert result.exit_code == 0
         assert "serve" in result.output
 
-    def test_eval_stub_exits_nonzero(self) -> None:
-        result = runner.invoke(app, ["eval"])
-        assert result.exit_code == 2
-        assert "Phase 7" in result.output
+    def test_eval_dispatches_to_harness_main(self) -> None:
+        # Patch the harness entry point so the test never touches the network.
+        with patch("evals.harness._main", new=AsyncMock(return_value=0)) as harness_main:
+            result = runner.invoke(app, ["eval"])
+        assert result.exit_code == 0
+        harness_main.assert_awaited_once()
 
 
 class TestDbReset:

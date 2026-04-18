@@ -52,7 +52,7 @@ test:           ## Run pytest (unit tests only; skips integration + llm markers)
 	uv run pytest -q -m "not integration and not llm"
 
 eval:           ## Run the golden eval suite and write evals/latest.md
-	uv run python evals/harness.py
+	uv run voyage eval
 
 # ── Security and supply chain ─────────────────────────────────────────────────
 scan:           ## Scan container image with Trivy (requires trivy CLI)

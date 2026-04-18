@@ -260,11 +260,10 @@ def mcp_serve() -> None:
 
 @app.command("eval")
 def eval_cmd() -> None:
-    """Run the golden eval suite. (Lands in Phase 7.)"""
-    console.print(
-        "[yellow]The eval harness lands in Phase 7. Track progress in CLAUDE.md → Phase 7.[/yellow]"
-    )
-    raise typer.Exit(code=2)
+    """Run the golden eval suite and write evals/latest.md."""
+    from evals.harness import _main as harness_main
+
+    raise typer.Exit(code=asyncio.run(harness_main()))
 
 
 # ---------------------------------------------------------------------------
