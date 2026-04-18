@@ -601,3 +601,7 @@ CI-side secrets, configured in GitHub Actions repository settings (not in any co
 Update after each phase. Keep entries terse.
 
 - `0.0.0` — spec authored, no code yet.
+- Phase 0 — governance baseline: CI (`ci.yml`), security pipeline (`security.yml`), pre-commit hooks, Dependabot, PR/issue templates, LICENSE, SECURITY.md, CONTRIBUTING.md.
+- Phase 1 — repo bootstrap: `pyproject.toml`, `uv.lock`, `docker-compose.yml`, `Makefile`, `.env.example`, `voyage/` package skeleton (`__init__.py`, `config.py`).
+- Phase 2 — data model and generator: `sql/schema.sql` (7 warehouse tables + retrieval index + `bi_copilot_ro` role), `scripts/seed.py` (Faker seed=42, ~84 k rows), `scripts/build_retrieval_index.py` (OpenAI embeddings, pgvector IVFFlat), `data/metrics.yaml` (6 named metrics), `evals/examples.yaml` (12 few-shot examples).
+- Phase 3 — MCP warehouse server: `server/_models.py` (Pydantic v2 I/O models), `server/_validator.py` (sqlglot parse-tree validator, SELECT-only + LIMIT injection), `server/warehouse_mcp.py` (FastMCP, 5 read-only tools), `server/prompts/query_assistant.md`; `tests/test_validator.py` (33 tests), `tests/test_mcp_tools.py` (25 tests, mocked asyncpg pool).
