@@ -31,7 +31,7 @@ validator on the first try, executes, and interprets.
 ```
 $ voyage ask "Top 5 markets by revenue last quarter" --trace
 
-Voyage  run 7f3a9c21  →  logs/run-20260418-120301-7f3a9c21.jsonl
+Voyage  run 7f3a9c21  →  logs/run-20260418T120301-7f3a9c21.jsonl
 Q: Top 5 markets by revenue last quarter
 
   ✓ classify_intent   412 ms  (180→32 tok)
