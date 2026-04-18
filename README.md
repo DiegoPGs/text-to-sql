@@ -11,7 +11,6 @@ It answers natural-language business questions over a synthetic warehouse and re
 ## Quick start
 
 ```bash
-cd /home/runner/work/text-to-sql/text-to-sql
 python -m text_to_sql "Show the monthly bookings trend"
 ```
 

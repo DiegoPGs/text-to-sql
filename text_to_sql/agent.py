@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import partial
 import re
 import sqlite3
 from typing import Iterable, Sequence
@@ -108,7 +109,7 @@ class TextToSQLAgent:
                 GROUP BY l.city
                 ORDER BY occupancy_rate DESC
             """
-            chart_builder = lambda rows: _bar_chart(rows, suffix="%")
+            chart_builder = partial(_bar_chart, suffix="%")
         elif "revenue" in normalized and ("top" in normalized or "highest" in normalized):
             sql = """
                 SELECT l.city || ' - ' || l.neighborhood AS listing,
@@ -169,7 +170,7 @@ class TextToSQLAgent:
         if not cleaned.startswith("select"):
             raise ValueError("Only SELECT statements are allowed")
         forbidden = ("insert", "update", "delete", "drop", "alter", "create", "attach", "pragma")
-        if any(re.search(rf"\\b{keyword}\\b", cleaned) for keyword in forbidden):
+        if any(re.search(rf"\b{keyword}\b", cleaned) for keyword in forbidden):
             raise ValueError("Potentially unsafe SQL detected")
 
 
