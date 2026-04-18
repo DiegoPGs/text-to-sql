@@ -102,16 +102,18 @@ besides `interpret_result` and `terminate_failure`.
 **Input:** `question` + `clarification`.
 **Output:** `retrieved_tables`, `retrieved_examples`, `metrics_catalog`.
 
-Three calls against the MCP warehouse client:
+Warehouse/context loading consists of:
 
-1. `list_tables()` — all tables with descriptions and row-count estimates.
-2. pgvector similarity search over table and example embeddings,
-   ranked by cosine distance against the question embedding. Top-k
-   defaults: 6 tables, 4 few-shot examples.
-3. `get_metrics_catalog()` — always included in full; it is small.
+1. `list_tables()` — fetch all tables with descriptions and row-count
+   estimates.
+2. Rank tables by keyword overlap with the user question, then call
+   `describe_table()` for the top-k tables to build `retrieved_tables`.
+3. Load few-shot examples from YAML into `retrieved_examples` (these are
+   not retrieved via the warehouse client or vector similarity search).
+4. `get_metrics_catalog()` — always included in full; it is small.
 
 Retrieval is *not* refined on retry. If the right table is not in the
-top-6, the self-correction loop can't recover.
+keyword-ranked top-k set, the self-correction loop can't recover.
 
 ### `draft_sql`
 
