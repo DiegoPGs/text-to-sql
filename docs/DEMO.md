@@ -79,8 +79,9 @@ Trace
 
 Things worth noticing:
 
-- `confirmed` filter was added by `draft_sql` on its own. That lives in
-  the field docstring of `SqlDraft.sql`, not in free-text prompting.
+- `confirmed` filter was added by `draft_sql` on its own. That
+  constraint is stated in the `draft_sql` system prompt and reinforced
+  in the Pydantic `Field(description=...)` for `SqlDraft.sql`.
 - `retrieve_context` cost is 0 tokens — pgvector is local.
 - The JSONL log captures the same spans; the `--trace` table is just a
   pretty render of what is already on disk.
