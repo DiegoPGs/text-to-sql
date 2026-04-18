@@ -44,8 +44,17 @@ async def execute_sql(state: AgentState, config: RunnableConfig) -> dict[str, An
         }
     except Exception as exc:  # noqa: BLE001
         duration = round((time.monotonic() - t0) * 1000, 2)
+        next_retry = state["retry_count"] + 1
         return {
             "query_result": None,
+            "retry_count": next_retry,
             "errors": [NodeError(node="execute_sql", error=str(exc))],
-            "trace": [Span(node="execute_sql", duration_ms=duration, error=str(exc))],
+            "trace": [
+                Span(
+                    node="execute_sql",
+                    duration_ms=duration,
+                    retry_count=next_retry,
+                    error=str(exc),
+                )
+            ],
         }

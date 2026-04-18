@@ -1,7 +1,9 @@
-"""Voyage BI Copilot CLI — Phase 4 minimal implementation.
+"""Voyage BI Copilot CLI — Phase 5.
 
 Commands:
-    ask  — run the agent against a natural-language question
+    ask  — run the agent against a natural-language question.  Handles
+           HITL clarification interrupts and resumes the graph with the
+           user's reply.
 
 Full streaming output, --trace flag, and additional commands (eval,
 db seed, db reset, mcp serve) are added in Phase 6.
@@ -20,6 +22,7 @@ from typing import Any
 
 import asyncpg
 import typer
+from langgraph.types import Command
 from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
@@ -46,6 +49,16 @@ def ask(
     asyncio.run(_ask(question))
 
 
+def _extract_interrupt(state: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the first interrupt payload from a graph result, if any."""
+    raw = state.get("__interrupt__")
+    if not raw:
+        return None
+    item = raw[0] if isinstance(raw, (list, tuple)) else raw
+    payload = getattr(item, "value", item)
+    return payload if isinstance(payload, dict) else {"reason": str(payload)}
+
+
 async def _ask(question: str) -> None:
     run_id = str(uuid.uuid4())[:8]
     console.print(f"[dim]run {run_id}[/dim]")
@@ -53,12 +66,16 @@ async def _ask(question: str) -> None:
     pool: Any = await asyncpg.create_pool(config.RO_DATABASE_URL, min_size=1, max_size=3)
     client = WarehouseClient(pool)
     graph = build_graph()
+    cfg: dict[str, Any] = {"configurable": {"client": client, "thread_id": run_id}}
 
     try:
-        state = await graph.ainvoke(
-            initial_state(question),
-            config={"configurable": {"client": client}},
-        )
+        state = await graph.ainvoke(initial_state(question), config=cfg)
+        # HITL: if the graph paused on an interrupt, prompt and resume.
+        while (payload := _extract_interrupt(state)) is not None:
+            reason = payload.get("reason", "I need a bit more context to answer.")
+            console.print(f"\n[bold yellow]Need clarification[/bold yellow]  {reason}")
+            user_input = console.input("[bold]> [/bold]")
+            state = await graph.ainvoke(Command(resume=user_input), config=cfg)
     finally:
         await pool.close()
 
